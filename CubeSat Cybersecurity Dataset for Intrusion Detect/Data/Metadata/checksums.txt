@@ -1,0 +1,15 @@
+# CuCD-ID Dataset Checksums
+# SHA-256 hashes for integrity verification
+
+# Raw Dataset
+# Path: Data/Raw/consolidated_dataset_raw.csv
+# Size: 4.23 MB (25,000 rows × 31 columns)
+2a6bb7bc9856099eef468dfe7df0043718a57c6ce84328e26b1883fa560c6ca2  
+# Augmented Dataset
+# Path: Data/Augmented/noised_dataset.csv
+# Size: 6.08 MB (22,465 rows × 23 columns)
+656fc2f23544469d8cbdca631747debc8dae7164621a2cd6740a5928cfae3c68 
+
+# Verification Instructions:
+# Linux/macOS: sha256sum -c checksums.txt
+# Windows (PowerShell): Get-FileHash -Algorithm SHA256 <filename>

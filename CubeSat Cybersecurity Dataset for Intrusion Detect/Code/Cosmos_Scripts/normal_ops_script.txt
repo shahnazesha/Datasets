@@ -1,0 +1,102 @@
+# Continuous Autonomous Health Monitoring Routine
+# Description:
+# This script is designed to run continuously (when the satellite is in view)
+# to monitor the health of the Core Flight System (CFS). It issues a total of 5,000 commands,
+# repeating a cycle of 20 health-check commands. These commands cover a wide range of applications:
+#   - CFDP (CF_NOOP, CF_RESET_COUNTERS)
+#   - Command Ingest (CI_NOOP_CC, CI_GET_HK)
+#   - Housekeeping (HK_NOOP)
+#   - Health & Safety (HS_NOOP, HS_RESET)
+#   - Limit Checker (LC_NOOP, LC_RESET)
+#   - Data Storage (DS_NOOP)
+#   - Executive Services (CFE_ES_NOOP)
+#   - Event Services (CFE_EVS_NO_OPERATION)
+#   - File Manager (FM_NOOP)
+#   - Memory Dwell (MD_NOOP)
+#   - Memory Manager (MM_NOOP)
+#   - Software Bus (CFE_SB_NOOP)
+#   - Stored Commands (SC_NOOP)
+#   - Scheduler (SCH_NOOP)
+#   - Time Services (CFE_TIME_DIAG_TLM)
+#   - Telemetry Output (TO_NOOP)
+#
+# A realistic delay of 0.1 seconds is inserted between each command to simulate periodic polling.
+# Prior to issuing any TO telemetry commands, the script enables all telemetry routes.
+
+require 'cosmos/script'
+
+
+puts "Starting Continuous Autonomous Health Monitoring Routine (5000 commands total)..."
+
+# Ensure Telemetry Output is enabled before telemetry commands are requested.
+cmd("CFS", "TO_ENABLE_ALL")
+
+5000.times do |i|
+  case i % 20
+  when 0
+    # CFDP: Verify CFDP is responsive
+    cmd("CFS", "CF_NOOP")
+  when 1
+    # CFDP: Reset CFDP counters to clear transfer metrics
+    cmd("CFS", "CF_RESET_COUNTERS")
+  when 2
+    # Command Ingest: Verify CI transmission pipeline is healthy
+    cmd("CFS", "CI_NOOP_CC")
+  when 3
+    # Command Ingest: Request CI housekeeping telemetry
+    cmd("CFS", "CI_GET_HK")
+  when 4
+    # Housekeeping: Check HK application status
+    cmd("CFS", "HK_NOOP")
+  when 5
+    # Health & Safety: Verify HS application is operational
+    cmd("CFS", "HS_NOOP")
+  when 6
+    # Limit Checker: Confirm LC is active
+    cmd("CFS", "LC_NOOP")
+  when 7
+    # Health & Safety: Reset HS housekeeping counters
+    cmd("CFS", "HS_RESET")
+  when 8
+    # Limit Checker: Reset LC housekeeping counters
+    cmd("CFS", "LC_RESET")
+  when 9
+    # Data Storage: Verify DS application status
+    cmd("CFS", "DS_NOOP")
+  when 10
+    # Executive Services: Check ES application status
+    cmd("CFS", "CFE_ES_NOOP")
+  when 11
+    # Event Services: Verify EVS functionality
+    cmd("CFS", "CFE_EVS_NO_OPERATION")
+  when 12
+    # File Manager: Check FM application status
+    cmd("CFS", "FM_NOOP")
+  when 13
+    # Memory Dwell: Verify MD application is running
+    cmd("CFS", "MD_NOOP")
+  when 14
+    # Memory Manager: Confirm MM is active
+    cmd("CFS", "MM_NOOP")
+  when 15
+    # Software Bus: Check SB functionality
+    cmd("CFS", "CFE_SB_NOOP")
+  when 16
+    # Stored Commands: Verify SC application status
+    cmd("CFS", "SC_NOOP")
+  when 17
+    # Scheduler: Confirm SCH application is active
+    cmd("CFS", "SCH_NOOP")
+  when 18
+    # Time Services: Request diagnostic telemetry from Time Services
+    cmd("CFS", "CFE_TIME_DIAG_TLM")
+  when 19
+    # Telemetry Output: Verify TO application is active
+    cmd("CFS", "TO_NOOP")
+  end
+
+  # Wait for 0.1 seconds between commands to simulate realistic periodic polling.
+  wait(0.1)
+end
+
+prompt("Continuous Health Monitoring Routine complete: 5000 commands have been executed.")

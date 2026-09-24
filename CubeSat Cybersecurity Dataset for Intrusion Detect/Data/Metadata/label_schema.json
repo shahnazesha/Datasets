@@ -1,0 +1,13 @@
+{
+    "dataset": "CuCD-ID",
+    "label_column": "Label",
+    "label_type": "integer",
+    "mapping": {
+      "0": "command_flooding",
+      "1": "data_injection",
+      "2": "defence_impairment",
+      "3": "normal",
+      "4": "storage_exhaustion"
+    }
+  }
+  
